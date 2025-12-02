@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ArrowRight, Target, Lightbulb, Trophy, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Target, Lightbulb, Trophy, User, CheckCircle, Plus, X } from 'lucide-react';
 import { useDelegation } from '@/context/DelegationContext';
 import { toast } from '@/hooks/use-toast';
 import { ProjectStatus } from '@/types/delegation';
@@ -21,20 +21,23 @@ const STEPS = [
   { id: 'purpose', title: 'The "Why"', icon: Target },
   { id: 'importance', title: 'The Importance', icon: Lightbulb },
   { id: 'outcome', title: 'Ideal Outcome', icon: Trophy },
+  { id: 'criteria', title: 'Success Criteria', icon: CheckCircle },
   { id: 'assign', title: 'Assign', icon: User },
 ];
 
 export function AddDelegationWizard({ open, onClose }: AddDelegationWizardProps) {
-  const { profiles, addProject } = useDelegation();
+  const { profiles, addProject, addSuccessCriteria } = useDelegation();
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
     purpose: '',
     importance: '',
     idealOutcome: '',
+    successCriteria: [] as string[],
     profileId: '',
     dueDate: '',
   });
+  const [newCriterion, setNewCriterion] = useState('');
 
   const currentStep = STEPS[step];
   const progress = ((step + 1) / STEPS.length) * 100;
@@ -50,10 +53,29 @@ export function AddDelegationWizard({ open, onClose }: AddDelegationWizardProps)
       case 3:
         return formData.idealOutcome.trim().length > 0;
       case 4:
+        return true; // Success criteria is optional
+      case 5:
         return formData.profileId.length > 0;
       default:
         return false;
     }
+  };
+
+  const handleAddCriterion = () => {
+    if (newCriterion.trim()) {
+      setFormData({
+        ...formData,
+        successCriteria: [...formData.successCriteria, newCriterion.trim()],
+      });
+      setNewCriterion('');
+    }
+  };
+
+  const handleRemoveCriterion = (index: number) => {
+    setFormData({
+      ...formData,
+      successCriteria: formData.successCriteria.filter((_, i) => i !== index),
+    });
   };
 
   const handleNext = () => {
@@ -71,7 +93,7 @@ export function AddDelegationWizard({ open, onClose }: AddDelegationWizardProps)
   };
 
   const handleSubmit = () => {
-    addProject({
+    const newProject = addProject({
       profileId: formData.profileId,
       name: formData.name.trim(),
       purpose: formData.purpose.trim(),
@@ -82,13 +104,23 @@ export function AddDelegationWizard({ open, onClose }: AddDelegationWizardProps)
       comments: '',
     });
 
+    // Add all success criteria to the new project
+    formData.successCriteria.forEach((criterion) => {
+      addSuccessCriteria({
+        projectId: newProject.id,
+        description: criterion,
+        isComplete: false,
+      });
+    });
+
     toast({ title: 'Delegation created', description: `"${formData.name}" has been added.` });
     resetAndClose();
   };
 
   const resetAndClose = () => {
     setStep(0);
-    setFormData({ name: '', purpose: '', importance: '', idealOutcome: '', profileId: '', dueDate: '' });
+    setFormData({ name: '', purpose: '', importance: '', idealOutcome: '', successCriteria: [], profileId: '', dueDate: '' });
+    setNewCriterion('');
     onClose();
   };
 
@@ -173,6 +205,46 @@ export function AddDelegationWizard({ open, onClose }: AddDelegationWizardProps)
           )}
 
           {step === 4 && (
+            <div className="space-y-3">
+              <Label>What specific results define "Done"?</Label>
+              <p className="text-sm text-muted-foreground">
+                Add measurable criteria to track progress. (Optional)
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={newCriterion}
+                  onChange={(e) => setNewCriterion(e.target.value)}
+                  placeholder="e.g., All stakeholders have signed off"
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCriterion())}
+                  autoFocus
+                />
+                <Button type="button" size="icon" onClick={handleAddCriterion} disabled={!newCriterion.trim()}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              {formData.successCriteria.length > 0 && (
+                <ul className="space-y-2 mt-3">
+                  {formData.successCriteria.map((criterion, index) => (
+                    <li key={index} className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                      <CheckCircle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="flex-1 text-sm">{criterion}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleRemoveCriterion(index)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {step === 5 && (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Who will own this delegation?</Label>
