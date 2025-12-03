@@ -2,6 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Quick Start (New Developers)
+
+```bash
+# 1. Clone and install
+git clone <repo-url>
+cd impact-flow
+npm install
+
+# 2. Configure environment (SQLite with persistence)
+cp .env.example .env.local
+# Edit .env.local and set:
+#   VITE_STORAGE_TYPE=sqlite
+#   VITE_SQLITE_PERSISTENCE=indexeddb
+#   VITE_DEMO_MODE=true
+
+# 3. Start development server
+npm run dev
+# Opens at http://localhost:8080
+```
+
 ## Build & Development Commands
 
 ```bash
@@ -25,6 +45,7 @@ npm run preview      # Preview production build
 - React Router v6 (single-page app)
 - Zod for schema validation
 - React Context + focused hooks for state management
+- sql.js for in-browser SQLite with IndexedDB persistence
 
 ## Project Structure
 
@@ -76,15 +97,25 @@ src/
 │   │   ├── IProjectRepository.ts
 │   │   └── ICriteriaRepository.ts
 │   ├── implementations/
-│   │   └── memory/            # In-memory implementations
-│   │       ├── InMemoryProfileRepository.ts
-│   │       ├── InMemoryProjectRepository.ts
-│   │       └── InMemoryCriteriaRepository.ts
+│   │   ├── memory/            # In-memory implementations
+│   │   │   ├── InMemoryProfileRepository.ts
+│   │   │   ├── InMemoryProjectRepository.ts
+│   │   │   └── InMemoryCriteriaRepository.ts
+│   │   └── sqlite/            # SQLite implementations
+│   │       ├── SQLiteProfileRepository.ts
+│   │       ├── SQLiteProjectRepository.ts
+│   │       ├── SQLiteCriteriaRepository.ts
+│   │       ├── index.ts
+│   │       └── shared/
+│   │           ├── connection.ts   # DB singleton, WASM loading
+│   │           ├── schema.ts       # Table definitions
+│   │           ├── persistence.ts  # IndexedDB save/load
+│   │           └── mappers.ts      # Row to entity mapping
 │   └── factory.ts             # Repository factory (singleton)
 │
 ├── data/                      # Data initialization
 │   ├── seedData.ts            # Demo/sample data
-│   └── seedLoader.ts          # Conditional loader
+│   └── seedLoader.ts          # Conditional loader (skips if data exists)
 │
 ├── config/                    # Configuration layer
 │   ├── env.ts                 # Type-safe env variables
@@ -116,7 +147,7 @@ graph TB
 
     subgraph Data["Data Access Layer"]
         Interfaces["Repository Interfaces"]
-        Implementations["Implementations<br/>(InMemory, future: SQLite)"]
+        Implementations["Implementations<br/>(InMemory, SQLite)"]
         Factory["Repository Factory"]
     end
 
@@ -146,17 +177,17 @@ sequenceDiagram
     participant Ctx as DelegationContext
     participant H as Focused Hook
     participant R as Repository
-    participant S as Storage (Map)
+    participant DB as SQLite/IndexedDB
 
-    Note over C,S: Read Flow
+    Note over C,DB: Read Flow
     C->>Ctx: useDelegation()
     Ctx-->>C: { profiles, projects, ... }
 
-    Note over C,S: Write Flow (e.g., addProject)
+    Note over C,DB: Write Flow (e.g., addProject)
     C->>Ctx: addProject(input)
     Ctx->>H: projectsHook.addProject(input)
     H->>R: projectRepo.create(input)
-    R->>S: Map.set(id, project)
+    R->>DB: INSERT + schedulePersist()
     R-->>H: Promise<Project>
     H->>H: setProjects([...projects, newProject])
     Ctx-->>C: optimistic Project (sync return)
@@ -273,21 +304,17 @@ classDiagram
         +clear()
     }
 
-    class InMemoryProjectRepository {
-        -projects: Map
-        +seed(data)
-        +clear()
-    }
-
-    class InMemoryCriteriaRepository {
-        -criteria: Map
+    class SQLiteProfileRepository {
         +seed(data)
         +clear()
     }
 
     IProfileRepository <|.. InMemoryProfileRepository
+    IProfileRepository <|.. SQLiteProfileRepository
     IProjectRepository <|.. InMemoryProjectRepository
+    IProjectRepository <|.. SQLiteProjectRepository
     ICriteriaRepository <|.. InMemoryCriteriaRepository
+    ICriteriaRepository <|.. SQLiteCriteriaRepository
 ```
 
 ## Configuration
@@ -295,18 +322,34 @@ classDiagram
 ### Environment Variables
 
 ```bash
-# .env or .env.local
-VITE_STORAGE_TYPE=memory      # Options: memory, sqlite (future), supabase (future)
-VITE_DEMO_MODE=true           # Load sample data on startup
+# .env.local (create from .env.example)
+
+# Storage backend
+VITE_STORAGE_TYPE=sqlite      # Options: memory, sqlite, supabase (future)
+
+# SQLite persistence mode
+VITE_SQLITE_PERSISTENCE=indexeddb  # Options: memory (no persistence), indexeddb (persistent)
+
+# Demo mode - loads sample data on first run
+VITE_DEMO_MODE=true           # Set to false for empty database
 ```
+
+### Storage Modes
+
+| Mode | Persistence | Use Case |
+|------|-------------|----------|
+| `memory` | None (resets on refresh) | Quick testing, demos |
+| `sqlite` + `memory` | None (resets on refresh) | Testing SQLite without persistence |
+| `sqlite` + `indexeddb` | Browser IndexedDB | **Recommended for development** |
 
 ### Config Access
 
 ```typescript
 import { config } from '@/config';
 
-config.storage.type    // 'memory' | 'sqlite' | 'supabase'
-config.features.demoMode   // boolean
+config.storage.type           // 'memory' | 'sqlite' | 'supabase'
+config.sqlite.persistence     // 'memory' | 'indexeddb'
+config.features.demoMode      // boolean
 ```
 
 ## Key Patterns
@@ -330,8 +373,8 @@ const {
 ### Repository Factory
 
 ```typescript
-// Get singleton repositories (controlled by config)
-const repos = getRepositories();
+// Async initialization required for SQLite (WASM loading)
+const repos = await initializeRepositories();
 repos.profiles.getAll();
 repos.projects.create(input);
 ```
@@ -343,6 +386,36 @@ import { Button } from '@/components/ui/button';
 import { useDelegation } from '@/context/DelegationContext';
 import { Profile } from '@/domain';
 ```
+
+## SQLite Implementation Details
+
+### How It Works
+
+1. **WASM Loading**: sql.js loads SQLite compiled to WebAssembly from CDN
+2. **Schema Init**: Tables created on first run (`profiles`, `projects`, `success_criteria`)
+3. **Persistence**: After each mutation, database binary is saved to IndexedDB
+4. **Restore**: On page load, database is restored from IndexedDB if available
+5. **Debounced Saves**: `schedulePersist()` debounces writes (100ms) to avoid excessive I/O
+
+### SQLite Files
+
+```
+src/repositories/implementations/sqlite/
+├── SQLiteProfileRepository.ts   # Profile CRUD operations
+├── SQLiteProjectRepository.ts   # Project CRUD operations
+├── SQLiteCriteriaRepository.ts  # Criteria CRUD operations
+├── index.ts                     # Exports
+└── shared/
+    ├── connection.ts            # initializeDatabase(), getDatabase(), persistDatabase()
+    ├── schema.ts                # CREATE TABLE statements
+    ├── persistence.ts           # IndexedDB save/load/clear
+    └── mappers.ts               # SQL row to TypeScript entity conversion
+```
+
+### Clearing Browser Data
+
+To reset the SQLite database, clear IndexedDB in browser DevTools:
+- Chrome: DevTools > Application > IndexedDB > `impact-flow-sqlite` > Delete database
 
 ## SOLID Principles Applied
 
@@ -356,17 +429,16 @@ import { Profile } from '@/domain';
 
 ## Current Limitations
 
-- In-memory storage only (data resets on page refresh)
-- SQLite integration planned (see `sqlite_refactor.md`)
-- React Query installed but unused
 - No authentication/multi-user support
+- React Query installed but unused
+- Supabase integration planned but not implemented
 
-## Future: SQLite Integration
+## Troubleshooting
 
-The repository pattern enables easy addition of persistent storage:
+### Data not persisting after refresh
+1. Ensure `.env.local` has `VITE_STORAGE_TYPE=sqlite` and `VITE_SQLITE_PERSISTENCE=indexeddb`
+2. Check browser console for `[SQLite]` log messages
+3. Verify IndexedDB is not disabled in browser settings
 
-```
-VITE_STORAGE_TYPE=sqlite npm run dev
-```
-
-See `sqlite_refactor.md` for implementation plan.
+### Textarea cursor jumping to end while typing
+This was fixed by using local state in `ProjectSheet.tsx`. Text fields save on blur, not on every keystroke.
