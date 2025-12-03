@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, useMemo, useCallback, useState, useEffect, ReactNode } from 'react';
 import { Profile, Project, SuccessCriteria } from '@/domain';
-import { getRepositories } from '@/repositories';
+import { initializeRepositories, Repositories } from '@/repositories';
 import { useProfiles } from '@/hooks/useProfiles';
 import { useProjects } from '@/hooks/useProjects';
 import { useSuccessCriteria } from '@/hooks/useSuccessCriteria';
@@ -33,21 +33,45 @@ interface DelegationContextType {
 const DelegationContext = createContext<DelegationContextType | undefined>(undefined);
 
 export function DelegationProvider({ children }: { children: ReactNode }) {
-  // Get repositories (singleton)
-  const repos = useMemo(() => getRepositories(), []);
+  // Repository state with async initialization support
+  const [repos, setRepos] = useState<Repositories | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Get initial data based on demo mode
   const initialData = useMemo(() => getInitialData(), []);
 
-  // Seed repositories with initial data on mount
+  // Initialize repositories (async for SQLite, sync for memory)
   useEffect(() => {
-    seedRepositories(repos);
-  }, [repos]);
+    let cancelled = false;
 
-  // Use focused hooks
-  const profilesHook = useProfiles(repos.profiles, repos.projects, initialData.profiles);
-  const projectsHook = useProjects(repos.projects, repos.criteria, initialData.projects);
-  const criteriaHook = useSuccessCriteria(repos.criteria, initialData.criteria);
+    async function init() {
+      const repositories = await initializeRepositories();
+      if (!cancelled) {
+        await seedRepositories(repositories);
+        setRepos(repositories);
+        setIsLoading(false);
+      }
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Use focused hooks (only when repos are initialized)
+  const profilesHook = useProfiles(
+    repos?.profiles ?? null,
+    repos?.projects ?? null,
+    initialData.profiles
+  );
+  const projectsHook = useProjects(
+    repos?.projects ?? null,
+    repos?.criteria ?? null,
+    initialData.projects
+  );
+  const criteriaHook = useSuccessCriteria(repos?.criteria ?? null, initialData.criteria);
 
   // Synchronous wrappers for backward compatibility
   const addProfile = useCallback(
@@ -177,6 +201,15 @@ export function DelegationProvider({ children }: { children: ReactNode }) {
       projectsHook.getProfileProjects,
     ]
   );
+
+  // Show loading state while repositories initialize
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <DelegationContext.Provider value={value}>

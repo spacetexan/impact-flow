@@ -3,7 +3,7 @@
  * Focused hook for profile state management (ISP, SRP)
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Profile, CreateProfileInput, UpdateProfileInput } from '@/domain';
 import { IProfileRepository, IProjectRepository } from '@/repositories';
 
@@ -15,14 +15,24 @@ export interface UseProfilesResult {
 }
 
 export function useProfiles(
-  profileRepo: IProfileRepository,
-  projectRepo: IProjectRepository,
+  profileRepo: IProfileRepository | null,
+  projectRepo: IProjectRepository | null,
   initialProfiles: Profile[] = []
 ): UseProfilesResult {
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles);
 
+  // Load data from repository when it becomes available
+  useEffect(() => {
+    if (profileRepo) {
+      profileRepo.getAll().then(setProfiles);
+    }
+  }, [profileRepo]);
+
   const addProfile = useCallback(
     async (input: CreateProfileInput): Promise<Profile> => {
+      if (!profileRepo) {
+        throw new Error('Profile repository not initialized');
+      }
       const newProfile = await profileRepo.create(input);
       setProfiles((prev) => [...prev, newProfile]);
       return newProfile;
@@ -32,6 +42,7 @@ export function useProfiles(
 
   const updateProfile = useCallback(
     async (id: string, input: UpdateProfileInput): Promise<void> => {
+      if (!profileRepo) return;
       const updated = await profileRepo.update(id, input);
       if (updated) {
         setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
@@ -42,6 +53,7 @@ export function useProfiles(
 
   const deleteProfile = useCallback(
     async (id: string): Promise<void> => {
+      if (!profileRepo || !projectRepo) return;
       const deleted = await profileRepo.delete(id);
       if (deleted) {
         // Cascade delete projects for this profile

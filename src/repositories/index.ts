@@ -8,7 +8,12 @@ export type { IProjectRepository } from './interfaces';
 export type { ICriteriaRepository } from './interfaces';
 
 // Factory
-export { createRepositories, getRepositories, resetRepositories } from './factory';
+export {
+  initializeRepositories,
+  getRepositories,
+  resetRepositories,
+  requiresAsyncInit,
+} from './factory';
 export type { Repositories } from './factory';
 
 // Implementations (for direct use or testing)
@@ -17,3 +22,9 @@ export {
   InMemoryProjectRepository,
   InMemoryCriteriaRepository,
 } from './implementations/memory';
+
+export {
+  SQLiteProfileRepository,
+  SQLiteProjectRepository,
+  SQLiteCriteriaRepository,
+} from './implementations/sqlite';

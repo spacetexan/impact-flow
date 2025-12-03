@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,9 +18,28 @@ interface ProjectSheetProps {
   onClose: () => void;
 }
 
-export function ProjectSheet({ project, open, onClose }: ProjectSheetProps) {
-  const { updateProject, deleteProject, getProjectCriteria, addSuccessCriteria, updateSuccessCriteria, deleteSuccessCriteria, profiles } = useDelegation();
+export function ProjectSheet({ project: initialProject, open, onClose }: ProjectSheetProps) {
+  const { updateProject, deleteProject, getProjectCriteria, addSuccessCriteria, updateSuccessCriteria, deleteSuccessCriteria, profiles, projects } = useDelegation();
   const [newCriteria, setNewCriteria] = useState('');
+
+  // Get the current project from context to ensure we have the latest data
+  const project = initialProject ? projects.find(p => p.id === initialProject.id) ?? initialProject : null;
+
+  // Local state for text fields to prevent cursor jumping
+  const [localPurpose, setLocalPurpose] = useState(project?.purpose ?? '');
+  const [localImportance, setLocalImportance] = useState(project?.importance ?? '');
+  const [localIdealOutcome, setLocalIdealOutcome] = useState(project?.idealOutcome ?? '');
+  const [localComments, setLocalComments] = useState(project?.comments ?? '');
+
+  // Sync local state when project changes (e.g., when opening a different project)
+  useEffect(() => {
+    if (project) {
+      setLocalPurpose(project.purpose);
+      setLocalImportance(project.importance);
+      setLocalIdealOutcome(project.idealOutcome);
+      setLocalComments(project.comments);
+    }
+  }, [project?.id]);
 
   if (!project) return null;
 
@@ -62,7 +81,8 @@ export function ProjectSheet({ project, open, onClose }: ProjectSheetProps) {
               {STATUS_LABELS[project.status]}
             </Badge>
           </div>
-          <SheetDescription className="flex items-center gap-2 text-sm">
+          {/* Using div instead of SheetDescription to allow Badge (div) nesting */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Assigned to</span>
             <Badge variant="secondary">{assignee?.name || 'Unassigned'}</Badge>
             {project.dueDate && (
@@ -72,6 +92,10 @@ export function ProjectSheet({ project, open, onClose }: ProjectSheetProps) {
                 <span>{new Date(project.dueDate).toLocaleDateString()}</span>
               </>
             )}
+          </div>
+          {/* Hidden SheetDescription for accessibility (required by Radix Dialog) */}
+          <SheetDescription className="sr-only">
+            Project details for {project.name}
           </SheetDescription>
         </SheetHeader>
 
@@ -100,8 +124,9 @@ export function ProjectSheet({ project, open, onClose }: ProjectSheetProps) {
                 The "Why" (Purpose)
               </Label>
               <Textarea
-                value={project.purpose}
-                onChange={(e) => updateProject(project.id, { purpose: e.target.value })}
+                value={localPurpose}
+                onChange={(e) => setLocalPurpose(e.target.value)}
+                onBlur={() => updateProject(project.id, { purpose: localPurpose })}
                 placeholder="What do we want to accomplish?"
                 className="min-h-[80px] resize-none"
               />
@@ -113,8 +138,9 @@ export function ProjectSheet({ project, open, onClose }: ProjectSheetProps) {
                 The Importance
               </Label>
               <Textarea
-                value={project.importance}
-                onChange={(e) => updateProject(project.id, { importance: e.target.value })}
+                value={localImportance}
+                onChange={(e) => setLocalImportance(e.target.value)}
+                onBlur={() => updateProject(project.id, { importance: localImportance })}
                 placeholder="What is the biggest difference this will make?"
                 className="min-h-[80px] resize-none"
               />
@@ -126,8 +152,9 @@ export function ProjectSheet({ project, open, onClose }: ProjectSheetProps) {
                 The Ideal Outcome
               </Label>
               <Textarea
-                value={project.idealOutcome}
-                onChange={(e) => updateProject(project.id, { idealOutcome: e.target.value })}
+                value={localIdealOutcome}
+                onChange={(e) => setLocalIdealOutcome(e.target.value)}
+                onBlur={() => updateProject(project.id, { idealOutcome: localIdealOutcome })}
                 placeholder="What does the completed project look like?"
                 className="min-h-[80px] resize-none"
               />
@@ -201,8 +228,9 @@ export function ProjectSheet({ project, open, onClose }: ProjectSheetProps) {
             <div className="space-y-2">
               <Label>Comments / Updates</Label>
               <Textarea
-                value={project.comments}
-                onChange={(e) => updateProject(project.id, { comments: e.target.value })}
+                value={localComments}
+                onChange={(e) => setLocalComments(e.target.value)}
+                onBlur={() => updateProject(project.id, { comments: localComments })}
                 placeholder="Add notes or updates..."
                 className="min-h-[60px] resize-none"
               />

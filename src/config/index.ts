@@ -9,6 +9,9 @@ export const config = {
   storage: {
     type: env.VITE_STORAGE_TYPE,
   },
+  sqlite: {
+    persistence: env.VITE_SQLITE_PERSISTENCE,
+  },
   features: {
     demoMode: env.VITE_DEMO_MODE,
   },

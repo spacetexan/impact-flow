@@ -10,6 +10,12 @@ import {
   InMemoryProjectRepository,
   InMemoryCriteriaRepository,
 } from './implementations/memory';
+import {
+  SQLiteProfileRepository,
+  SQLiteProjectRepository,
+  SQLiteCriteriaRepository,
+  initializeDatabase,
+} from './implementations/sqlite';
 
 export interface Repositories {
   profiles: IProfileRepository;
@@ -18,39 +24,92 @@ export interface Repositories {
 }
 
 let repositoriesInstance: Repositories | null = null;
+let initPromise: Promise<Repositories> | null = null;
 
-export function createRepositories(): Repositories {
-  const storageType = config.storage.type;
-
-  switch (storageType) {
-    case 'memory':
-      return {
-        profiles: new InMemoryProfileRepository(),
-        projects: new InMemoryProjectRepository(),
-        criteria: new InMemoryCriteriaRepository(),
-      };
-    case 'sqlite':
-    case 'supabase':
-      // Future implementations will be added here
-      console.warn(`Storage type "${storageType}" not yet implemented, falling back to memory`);
-      return {
-        profiles: new InMemoryProfileRepository(),
-        projects: new InMemoryProjectRepository(),
-        criteria: new InMemoryCriteriaRepository(),
-      };
-    default:
-      throw new Error(`Unknown storage type: ${storageType}`);
-  }
+/**
+ * Create in-memory repositories (sync)
+ */
+function createMemoryRepositories(): Repositories {
+  return {
+    profiles: new InMemoryProfileRepository(),
+    projects: new InMemoryProjectRepository(),
+    criteria: new InMemoryCriteriaRepository(),
+  };
 }
 
-export function getRepositories(): Repositories {
-  if (!repositoriesInstance) {
-    repositoriesInstance = createRepositories();
+/**
+ * Create SQLite repositories (requires async DB init)
+ */
+function createSQLiteRepositories(): Repositories {
+  return {
+    profiles: new SQLiteProfileRepository(),
+    projects: new SQLiteProjectRepository(),
+    criteria: new SQLiteCriteriaRepository(),
+  };
+}
+
+/**
+ * Initialize and get repositories asynchronously
+ * Required for SQLite (WASM loading)
+ */
+export async function initializeRepositories(): Promise<Repositories> {
+  // Return cached instance if available
+  if (repositoriesInstance) {
+    return repositoriesInstance;
   }
+
+  // Return existing init promise if in progress
+  if (initPromise) {
+    return initPromise;
+  }
+
+  const storageType = config.storage.type;
+
+  if (storageType === 'sqlite') {
+    initPromise = (async () => {
+      await initializeDatabase();
+      repositoriesInstance = createSQLiteRepositories();
+      return repositoriesInstance;
+    })();
+    return initPromise;
+  }
+
+  // Memory storage is synchronous
+  repositoriesInstance = createMemoryRepositories();
   return repositoriesInstance;
+}
+
+/**
+ * Get repositories synchronously (for backward compatibility with memory mode)
+ * Throws if using async storage type (SQLite) and not yet initialized
+ */
+export function getRepositories(): Repositories {
+  if (repositoriesInstance) {
+    return repositoriesInstance;
+  }
+
+  const storageType = config.storage.type;
+
+  if (storageType === 'sqlite') {
+    throw new Error(
+      'SQLite storage requires async initialization. Use initializeRepositories() first.'
+    );
+  }
+
+  // Memory storage can be created synchronously
+  repositoriesInstance = createMemoryRepositories();
+  return repositoriesInstance;
+}
+
+/**
+ * Check if repositories require async initialization
+ */
+export function requiresAsyncInit(): boolean {
+  return config.storage.type === 'sqlite';
 }
 
 // For testing purposes
 export function resetRepositories(): void {
   repositoriesInstance = null;
+  initPromise = null;
 }

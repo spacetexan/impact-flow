@@ -4,10 +4,12 @@
  */
 
 type StorageType = 'memory' | 'sqlite' | 'supabase';
+type SqlitePersistence = 'memory' | 'indexeddb';
 
 interface EnvConfig {
   VITE_STORAGE_TYPE: StorageType;
   VITE_DEMO_MODE: boolean;
+  VITE_SQLITE_PERSISTENCE: SqlitePersistence;
 }
 
 function getEnvString(key: string, defaultValue: string): string {
@@ -29,7 +31,17 @@ function getStorageType(): StorageType {
   return 'memory';
 }
 
+function getSqlitePersistence(): SqlitePersistence {
+  const value = getEnvString('VITE_SQLITE_PERSISTENCE', 'indexeddb');
+  if (value === 'memory' || value === 'indexeddb') {
+    return value;
+  }
+  console.warn(`Invalid VITE_SQLITE_PERSISTENCE "${value}", defaulting to "indexeddb"`);
+  return 'indexeddb';
+}
+
 export const env: EnvConfig = {
   VITE_STORAGE_TYPE: getStorageType(),
   VITE_DEMO_MODE: getEnvBoolean('VITE_DEMO_MODE', true),
+  VITE_SQLITE_PERSISTENCE: getSqlitePersistence(),
 };

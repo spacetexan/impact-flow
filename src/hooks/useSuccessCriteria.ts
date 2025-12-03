@@ -3,7 +3,7 @@
  * Focused hook for success criteria state management (ISP, SRP)
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SuccessCriteria, CreateSuccessCriteriaInput, UpdateSuccessCriteriaInput } from '@/domain';
 import { ICriteriaRepository } from '@/repositories';
 
@@ -18,13 +18,23 @@ export interface UseSuccessCriteriaResult {
 }
 
 export function useSuccessCriteria(
-  criteriaRepo: ICriteriaRepository,
+  criteriaRepo: ICriteriaRepository | null,
   initialCriteria: SuccessCriteria[] = []
 ): UseSuccessCriteriaResult {
   const [successCriteria, setSuccessCriteria] = useState<SuccessCriteria[]>(initialCriteria);
 
+  // Load data from repository when it becomes available
+  useEffect(() => {
+    if (criteriaRepo) {
+      criteriaRepo.getAll().then(setSuccessCriteria);
+    }
+  }, [criteriaRepo]);
+
   const addSuccessCriteria = useCallback(
     async (input: CreateSuccessCriteriaInput): Promise<SuccessCriteria> => {
+      if (!criteriaRepo) {
+        throw new Error('Criteria repository not initialized');
+      }
       const newCriteria = await criteriaRepo.create(input);
       setSuccessCriteria((prev) => [...prev, newCriteria]);
       return newCriteria;
@@ -34,6 +44,7 @@ export function useSuccessCriteria(
 
   const updateSuccessCriteria = useCallback(
     async (id: string, input: UpdateSuccessCriteriaInput): Promise<void> => {
+      if (!criteriaRepo) return;
       const updated = await criteriaRepo.update(id, input);
       if (updated) {
         setSuccessCriteria((prev) => prev.map((c) => (c.id === id ? updated : c)));
@@ -44,6 +55,7 @@ export function useSuccessCriteria(
 
   const deleteSuccessCriteria = useCallback(
     async (id: string): Promise<void> => {
+      if (!criteriaRepo) return;
       const deleted = await criteriaRepo.delete(id);
       if (deleted) {
         setSuccessCriteria((prev) => prev.filter((c) => c.id !== id));
