@@ -15,6 +15,9 @@ dist-ssr
 # Database files
 data/
 
+#test coverage output
+coverage/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
