@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm run lint)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nRefactor codebase for SOLID principles and 12-Factor compliance\n\n- Add config layer with type-safe environment variables (VITE_STORAGE_TYPE, VITE_DEMO_MODE)\n- Extract domain layer with entities, Zod validation schemas, and status constants\n- Implement repository pattern with interfaces and in-memory implementations\n- Split monolithic context into focused hooks (useProfiles, useProjects, useSuccessCriteria)\n- Extract seed data with conditional loading based on demo mode config\n- Maintain backward-compatible API for existing components\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run lint:*)",
+      "Bash(set VITE_STORAGE_TYPE=sqlite)",
+      "Bash(npm run dev:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
