@@ -11,6 +11,20 @@ import { loadFromIndexedDB, saveToIndexedDB } from './persistence';
 let SQL: SqlJsStatic | null = null;
 let db: Database | null = null;
 let initPromise: Promise<Database> | null = null;
+let beforeUnloadRegistered = false;
+
+/**
+ * Register beforeunload handler to flush pending database writes
+ * Only registers once to avoid duplicate handlers
+ */
+function registerBeforeUnloadHandler(): void {
+  if (beforeUnloadRegistered || typeof window === 'undefined') return;
+
+  window.addEventListener('beforeunload', () => {
+    flushPendingPersist();
+  });
+  beforeUnloadRegistered = true;
+}
 
 /**
  * Initialize the SQLite database
@@ -44,6 +58,8 @@ export async function initializeDatabase(): Promise<Database> {
           db = new SQL.Database(savedData);
           // Enable foreign keys
           db.run('PRAGMA foreign_keys = ON');
+          // Register beforeunload handler to flush pending writes
+          registerBeforeUnloadHandler();
           return db;
         }
       }
@@ -60,6 +76,8 @@ export async function initializeDatabase(): Promise<Database> {
       // Persist empty database if using IndexedDB
       if (config.sqlite.persistence === 'indexeddb') {
         await persistDatabase();
+        // Register beforeunload handler to flush pending writes
+        registerBeforeUnloadHandler();
       }
 
       return db;
@@ -119,6 +137,18 @@ export function schedulePersist(delay = 100): void {
     persistDatabase();
     persistTimeout = null;
   }, delay);
+}
+
+/**
+ * Flush any pending persistence immediately
+ * Called on beforeunload to ensure data is saved before page closes
+ */
+export function flushPendingPersist(): void {
+  if (persistTimeout) {
+    clearTimeout(persistTimeout);
+    persistTimeout = null;
+    persistDatabase();
+  }
 }
 
 /**
