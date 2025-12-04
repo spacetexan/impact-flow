@@ -1,73 +1,51 @@
-# Welcome to your Lovable project
+# Impact Flow
 
-## Project info
+A visual team delegation dashboard built on the Impact Filter Framework from "Who Not How". Uses React Flow to visualize delegation hierarchies as mind maps.
 
-**URL**: https://lovable.dev/projects/da2a4b25-94a1-4443-9d85-cffed4438440
+## Purpose
 
-## How can I edit this code?
+Impact Flow helps managers and team leads delegate work effectively by:
 
-There are several ways of editing your application.
+- Visualizing team members and their delegated projects as an interactive mind map
+- Tracking project status (planned, in progress, complete, blocked)
+- Documenting the "why" behind each delegation using the Impact Filter methodology
+- Managing success criteria for each project
 
-**Use Lovable**
+## Quick Start
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/da2a4b25-94a1-4443-9d85-cffed4438440) and start prompting.
+### Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js 18+ and npm
 
-**Use your preferred IDE**
+### Installation
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+# Clone the repository
+git clone https://github.com/spacetexan/impact-flow.git
+cd impact-flow
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# Install dependencies
+npm install
 
-Follow these steps:
+# Configure environment
+cp .env.example .env.local
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Start the development server (frontend + backend)
+npm run dev:full
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at http://localhost:8080
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Data Storage
 
-**Use GitHub Codespaces**
+Data is stored in a local SQLite database file at `data/impact-flow.db`. This file persists across restarts and can be backed up or copied.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Available Scripts
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/da2a4b25-94a1-4443-9d85-cffed4438440) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+| Command | Description |
+|---------|-------------|
+| `npm run dev:full` | Start both frontend and backend servers |
+| `npm run dev` | Start frontend only (Vite) |
+| `npm run dev:server` | Start backend only (Express) |
+| `npm run build` | Build for production |
+| `npm run lint` | Run ESLint |
