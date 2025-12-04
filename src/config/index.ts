@@ -12,6 +12,9 @@ export const config = {
   sqlite: {
     persistence: env.VITE_SQLITE_PERSISTENCE,
   },
+  api: {
+    baseUrl: env.VITE_API_URL,
+  },
   features: {
     demoMode: env.VITE_DEMO_MODE,
   },

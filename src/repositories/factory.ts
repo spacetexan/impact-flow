@@ -16,6 +16,11 @@ import {
   SQLiteCriteriaRepository,
   initializeDatabase,
 } from './implementations/sqlite';
+import {
+  ApiProfileRepository,
+  ApiProjectRepository,
+  ApiCriteriaRepository,
+} from './implementations/api';
 
 export interface Repositories {
   profiles: IProfileRepository;
@@ -49,6 +54,17 @@ function createSQLiteRepositories(): Repositories {
 }
 
 /**
+ * Create API-based repositories (calls Express backend)
+ */
+function createApiRepositories(): Repositories {
+  return {
+    profiles: new ApiProfileRepository(),
+    projects: new ApiProjectRepository(),
+    criteria: new ApiCriteriaRepository(),
+  };
+}
+
+/**
  * Initialize and get repositories asynchronously
  * Required for SQLite (WASM loading)
  */
@@ -72,6 +88,12 @@ export async function initializeRepositories(): Promise<Repositories> {
       return repositoriesInstance;
     })();
     return initPromise;
+  }
+
+  if (storageType === 'server') {
+    // API repositories are synchronous (async happens in fetch calls)
+    repositoriesInstance = createApiRepositories();
+    return repositoriesInstance;
   }
 
   // Memory storage is synchronous
