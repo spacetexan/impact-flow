@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, UserPlus, LayoutGrid, Network, Sparkles } from 'lucide-react';
+import { Plus, LayoutGrid, Network } from 'lucide-react';
 import { DelegationProvider, useDelegation } from '@/context/DelegationContext';
 import { DelegationFlow } from '@/components/delegation/DelegationFlow';
 import { ListView } from '@/components/delegation/ListView';
 import { ProjectSheet } from '@/components/delegation/ProjectSheet';
-import { AddTeamMemberDialog } from '@/components/delegation/AddTeamMemberDialog';
 import { AddDelegationWizard } from '@/components/delegation/AddDelegationWizard';
 import { Project, STATUS_LABELS } from '@/types/delegation';
 
@@ -15,7 +14,6 @@ function DashboardContent() {
   const { projects } = useDelegation();
   const [view, setView] = useState<'flow' | 'list'>('flow');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [showAddTeamMember, setShowAddTeamMember] = useState(false);
   const [showAddDelegation, setShowAddDelegation] = useState(false);
 
   const stats = {
@@ -27,34 +25,6 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl">
-                <Sparkles className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold">Delegation OS</h1>
-                <p className="text-sm text-muted-foreground">Impact Filter Framework</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => setShowAddTeamMember(true)}>
-                <UserPlus className="w-4 h-4 mr-2" />
-                Add Team Member
-              </Button>
-              <Button size="sm" onClick={() => setShowAddDelegation(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Delegation
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         {/* Stats Bar */}
@@ -78,18 +48,25 @@ function DashboardContent() {
             </Badge>
           </div>
 
-          <Tabs value={view} onValueChange={(v) => setView(v as 'flow' | 'list')}>
-            <TabsList>
-              <TabsTrigger value="flow" className="gap-2">
-                <Network className="w-4 h-4" />
-                Mind Map
-              </TabsTrigger>
-              <TabsTrigger value="list" className="gap-2">
-                <LayoutGrid className="w-4 h-4" />
-                List View
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center gap-3">
+            <Button size="sm" onClick={() => setShowAddDelegation(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Delegation
+            </Button>
+            
+            <Tabs value={view} onValueChange={(v) => setView(v as 'flow' | 'list')}>
+              <TabsList>
+                <TabsTrigger value="flow" className="gap-2">
+                  <Network className="w-4 h-4" />
+                  Mind Map
+                </TabsTrigger>
+                <TabsTrigger value="list" className="gap-2">
+                  <LayoutGrid className="w-4 h-4" />
+                  List View
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
 
         {/* View Content */}
@@ -105,10 +82,6 @@ function DashboardContent() {
         project={selectedProject}
         open={!!selectedProject}
         onClose={() => setSelectedProject(null)}
-      />
-      <AddTeamMemberDialog
-        open={showAddTeamMember}
-        onClose={() => setShowAddTeamMember(false)}
       />
       <AddDelegationWizard
         open={showAddDelegation}
