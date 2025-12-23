@@ -12,7 +12,7 @@ import { Project, STATUS_LABELS } from '@/types/delegation';
 
 function DashboardContent() {
   const { projects } = useDelegation();
-  const [view, setView] = useState<'flow' | 'list'>('flow');
+  const [view, setView] = useState<'flow' | 'list'>('list');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showAddDelegation, setShowAddDelegation] = useState(false);
 
